@@ -4,6 +4,18 @@ substitutions:
   devicename: esp9
   deviceip: 10.52.6.39
   board: esp32dev
+  #  SCL = gray   = 32  // SPI clock
+  #  SDA = violet = 33  // SPI data
+  #  RES = blue   = 25  // Reset
+  #  DC  = green  = 26
+  #  CS  = yellow = 27
+  #  BL  = orange = 14  // Backlight
+  lcd_SCL: GPIO32
+  lcd_SDA: GPIO33
+  lcd_RES: GPIO25
+  lcd_DC:  GPIO26
+  lcd_CS:  GPIO27
+  lcd_BL:  GPIO14   # not used anywhere in the code
 
 esphome:
   name: $devicename
@@ -14,11 +26,64 @@ mqtt:
   username: !secret mqtt_username
   password: !secret mqtt_password
 
+# Sensors are exported to the HomeAssistant (e.g. config "homeassistant/sensor/esp9/total_home_power_consumption" MQTT topic for the first sensor and then "esp9/sensor/total_home_power_consumption/state" for the real data):
 sensor:
   - platform: mqtt_subscribe
-    name: "Data from topic"
-    id: mysensor
-    topic: the/topic
+    name: "Immediate home power consumption"
+    id: current_home_power_consumption
+    unit_of_measurement: "W"
+    device_class: "energy"
+    accuracy_decimals: 1
+    topic: shellies/shellyem-E868E7D2B1DE/emeter/0/power
+
+spi:
+  clk_pin: $lcd_SCL
+  mosi_pin: $lcd_SDA
+  #miso_pin: GPIO12 # unused
+
+font:
+  # gfonts://family[@weight]
+  - file: "gfonts://Roboto"
+    id: roboto_normal
+    size: 20
+  - file: "gfonts://Roboto"
+    size: 30
+    id: font_default
+  - file: "gfonts://Roboto"
+    size: 30
+    weight: bold
+    id: font_default_bold
+
+display:
+  - platform: st7735
+    # https://esphome.io/components/display/st7735.html
+    # pins definition
+    model: "INITR_18BLACKTAB"
+    reset_pin: $lcd_RES
+    cs_pin: $lcd_CS
+    dc_pin: $lcd_DC
+    rotation: 0
+    device_width: 128
+    device_height: 160
+    col_start: 2
+    row_start: 1
+    eight_bit_color: true
+    update_interval: 1s
+    # https://esphome.io/components/display/index.html
+    # display content
+    lambda: |-
+      auto green = Color(0, 255, 0);
+      auto green2 = Color(128, 255, 127);
+      // Draw a line from [0,0] to [100,50]
+      it.line(0, 0, 100, 50);
+      it.line(0, 0, 50, 100);
+      it.line(160, 128, 0, 0, green2);
+      it.line(0, 0, 128, 160, green);
+      // print text
+      it.print(0, 10, id(roboto_normal), "Hello World!");
+
+      // sensor value:
+      it.printf(20, 80, id(font_default_bold), "%.0f W", id(current_home_power_consumption).state);
 
 esp32:
   board: $board
