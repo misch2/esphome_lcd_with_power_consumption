@@ -43,15 +43,14 @@ spi:
 
 font:
   # gfonts://family[@weight]
-  - file: "gfonts://Roboto"
-    id: roboto_normal
-    size: 20
-  - file: "gfonts://Roboto"
+  # - file: "gfonts://Roboto"
+  #   id: roboto_normal
+  #   size: 20
+  # - file: "gfonts://Roboto"
+  #   size: 30
+  #   id: font_default
+  - file: "gfonts://Roboto@bold"
     size: 30
-    id: font_default
-  - file: "gfonts://Roboto"
-    size: 30
-    weight: bold
     id: font_default_bold
 
 display:
@@ -80,7 +79,7 @@ display:
       it.line(160, 128, 0, 0, green2);
       it.line(0, 0, 128, 160, green);
       // print text
-      it.print(0, 10, id(roboto_normal), "Hello World!");
+      // it.print(0, 10, id(roboto_normal), "Hello World!");
 
       // sensor value:
       it.printf(20, 80, id(font_default_bold), "%.0f W", id(current_home_power_consumption).state);
