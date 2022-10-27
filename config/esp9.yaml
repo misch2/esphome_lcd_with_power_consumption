@@ -50,8 +50,16 @@ font:
   #   size: 30
   #   id: font_default
   - file: "gfonts://Roboto@bold"
-    size: 30
+    size: 32
     id: font_default_bold
+
+# graph:
+#   # Show bare-minimum auto-ranged graph
+#   - id: single_power_graph
+#     sensor: current_home_power_consumption
+#     duration: 10min
+#     width: 100
+#     height: 80
 
 display:
   - platform: st7735
@@ -71,24 +79,42 @@ display:
     # https://esphome.io/components/display/index.html
     # display content
     lambda: |-
+      auto black = Color(0, 0, 0);
+      auto white = Color(255, 255, 255);
+      auto gray = Color(127, 127, 127);
       auto green = Color(0, 255, 0);
-      auto green2 = Color(128, 255, 127);
+      auto green2 = Color(127, 255, 127);
+      // auto orange = Color(255, 165, 0);
+      auto orange = Color(192, 140, 0);
+      auto graph_color = Color(128, 128, 255);
+
       // Draw a line from [0,0] to [100,50]
-      it.line(0, 0, 100, 50);
-      it.line(0, 0, 50, 100);
-      it.line(160, 128, 0, 0, green2);
-      it.line(0, 0, 128, 160, green);
+      // it.line(0, 0, 100, 50);
+      // it.line(0, 0, 50, 100);
       // print text
       // it.print(0, 10, id(roboto_normal), "Hello World!");
+      //it.line(it.get_width(), 0, 0, it.get_height(), green2);
+      //it.line(0, 0, it.get_width(), it.get_height(), green);
 
       // sensor value:
-      it.printf(20, 80, id(font_default_bold), "%.0f W", id(current_home_power_consumption).state);
+      int x      = 10;
+      int y      = 10;
+      int width  = it.get_width() - (2*x);
+      int height = 60;
+      int spacex = 9;
+      int spacey = 11;
+
+      it.filled_rectangle(x, y, width, height, black);
+      it.rectangle(x, y, width, height, gray);
+      it.printf(x + spacex, y + spacey, id(font_default_bold), orange, "%.0f W", id(current_home_power_consumption).state);
+
+      // it.graph(x + spacex, y + height + spacey, id(single_power_graph), graph_color);
 
 esp32:
   board: $board
 
 logger:
-  level: DEBUG
+  level: WARN
 
 # Include common settings
 .dummy: !include &dummy include/base.yaml
