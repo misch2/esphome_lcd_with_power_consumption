@@ -5,6 +5,18 @@ esphome:
 esp32:
   board: esp32dev
 
+mqtt:
+  # rpi2.local
+  broker: 10.52.6.21
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+
+sensor:
+  - platform: mqtt_subscribe
+    name: "Data from topic"
+    id: mysensor
+    topic: the/topic
+
 
 # Enable Home Assistant API
 api:
