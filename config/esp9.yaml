@@ -1,6 +1,6 @@
 ---
 substitutions:
-  <<: !include base_substitutions.yaml
+  <<: !include include/base_substitutions.yaml
   devicename: esp9
   deviceip: 10.52.6.39
   board: esp32dev
@@ -27,12 +27,12 @@ logger:
   level: DEBUG
 
 # Include common settings
-.dummy: !include &dummy base.yaml
+.dummy: !include &dummy include/base.yaml
 <<: *dummy
 
 # Individual Wi-Fi settings
 wifi:
-  <<: !include wifi.yaml
+  <<: !include include/wifi.yaml
   # manual IP
   manual_ip:
     static_ip: $deviceip
