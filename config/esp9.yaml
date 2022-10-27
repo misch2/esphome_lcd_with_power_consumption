@@ -5,69 +5,6 @@ esphome:
 esp32:
   board: esp32dev
 
-i2c:
-  - id: bus_a
-    sda: 22
-    scl: 23
-    scan: true
-
-# https://esphome.io/components/sensor/bme680_bsec.html?highlight=bme680
-bme680_bsec:
-  i2c_id: bus_a
-  address: 0x77
-  temperature_offset: -0.5
-  iaq_mode: static
-  sample_rate: lp
-
-sensor:
-  - platform: bme680_bsec
-    temperature:
-      name: "BME680 Temperature"
-    #pressure:
-    #  name: "BME680 Pressure"
-    pressure:
-      name: "BME680 Sea Pressure"
-      filters:
-        # 236.0 = altitude
-        - lambda: >-
-            return x / powf(1.0 - (236.0 / 44330.0), 5.255);
-    humidity:
-      name: "BME680 Humidity"
-    iaq:
-      name: "BME680 IAQ"
-    co2_equivalent:
-      name: "BME680 CO2 Equivalent"
-    breath_voc_equivalent:
-      name: "BME680 Breath VOC Equivalent"
-  - platform: wifi_signal
-    name: "WiFi Signal Sensor"
-    update_interval: 60s
-
-# number:
-#   - platform: template
-#     name: "WiFi Number of Bars"
-#     min_value: 0
-#     max_value: 4
-#     step: 1
-#     entity_category: diagnostic
-#     lambda: |-
-#       if (id(wifi_signal).state >= -30)  {
-#         return 4;
-#       } else if (id(wifi_signal).state < -30 && id(wifi_signal).state >= -67) {
-#         return 3;
-#       } else if (id(wifi_signal).state < -67 && id(wifi_signal).state >= -70) {
-#         return 2;
-#       } else if (id(wifi_signal).state < -70 && id(wifi_signal).state >= -80) {
-#         return 1;
-#       } else {
-#         return 0;
-#       } 
-#    update_interval: 60s
-
-text_sensor:
-  - platform: bme680_bsec
-    iaq_accuracy:
-      name: "BME680 IAQ Accuracy"
 
 # Enable Home Assistant API
 api:
@@ -89,4 +26,4 @@ wifi:
     subnet: 255.255.255.0
 
 logger:
-  level: WARN
+  level: DEBUG
