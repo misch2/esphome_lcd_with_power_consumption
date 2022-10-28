@@ -30,9 +30,9 @@ void rounded_rectangle(
       it->filled_rectangle(x + 1, y + radius + 1, width - 1, height - 2*radius - 1, color_background);	// from left to right
 
       // remaining straight outside lines
-      it->horizontal_line(x + radius, y,           width - 2*radius,  color_outline);
-      it->horizontal_line(x + radius, y + height,  width - 2*radius,  color_outline);
-      it->vertical_line(  x,          y + radius,  height - 2*radius, color_outline);
-      it->vertical_line(  x + width,  y + radius,  height - 2*radius, color_outline);
+      it->horizontal_line(x + radius,    y,              width - 2*radius,  color_outline);
+      it->horizontal_line(x + radius,    y + height - 1, width - 2*radius,  color_outline);
+      it->vertical_line  (x,             y + radius,     height - 2*radius, color_outline);
+      it->vertical_line  (x + width - 1, y + radius,     height - 2*radius, color_outline);
 };
 

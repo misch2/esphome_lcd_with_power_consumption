@@ -16,50 +16,70 @@ substitutions:
   lcd_DC:  GPIO26
   lcd_CS:  GPIO27
   lcd_BL:  GPIO14   # not used anywhere in the code
+  czech_charset: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZáčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ0123456789 !?\"%()+,-./:=_°"
+  main_circuit_breaker_amps: "25"
+  voltage: "230"
+
+# Include common settings
+.dummy: !include &dummy include/base.yaml
+<<: *dummy
+
+esp32:
+  board: $board
 
 esphome:
   name: $devicename
+  includes:
+    - include/lcd_utils.h
 
+# Enable for debugging only, not needed for functionality:
+# web_server:
+#   port: 80
+#   include_internal: true
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret homeassistant_api_key
+
+## https://esphome.io/components/sensor/index.html
+#sensor:
+#  - platform: homeassistant
+#    entity_id: sensor.shellyem_e868e7d2b1de_channel_1_power
+#    id: current_power_consumption
+#    internal: true  # do not report this back to HA
+
+# For some reason the MQTT is much faster than API (and the interval is configurable in Shelly settings):
 mqtt:
-  # rpi2.local
   broker: !secret mqtt_server
   username: !secret mqtt_username
   password: !secret mqtt_password
 
-# Sensors are exported to the HomeAssistant (e.g. config "homeassistant/sensor/esp9/total_home_power_consumption" MQTT topic for the first sensor and then "esp9/sensor/total_home_power_consumption/state" for the real data):
 sensor:
   - platform: mqtt_subscribe
-    name: "Immediate home power consumption"
-    id: current_home_power_consumption
-    unit_of_measurement: "W"
-    device_class: "energy"
-    accuracy_decimals: 1
-    topic: shellies/shellyem-E868E7D2B1DE/emeter/0/power
+    id: current_power_consumption
+    topic: "shellies/shellyem-E868E7D2B1DE/emeter/0/power"
+    internal: true  # do not report this back to HA
+    filters:
+      - sliding_window_moving_average:
+          window_size: 5
+          send_every: 2
 
 spi:
   clk_pin: $lcd_SCL
   mosi_pin: $lcd_SDA
-  #miso_pin: GPIO12 # unused
 
 font:
-  # gfonts://family[@weight]
-  # - file: "gfonts://Roboto"
-  #   id: roboto_normal
-  #   size: 20
-  # - file: "gfonts://Roboto"
-  #   size: 30
-  #   id: font_default
+  - file: "gfonts://Roboto"
+    size: 12
+    id: font_small
+    glyphs: $czech_charset 
   - file: "gfonts://Roboto@bold"
-    size: 32
-    id: font_default_bold
-
-# graph:
-#   # Show bare-minimum auto-ranged graph
-#   - id: single_power_graph
-#     sensor: current_home_power_consumption
-#     duration: 10min
-#     width: 100
-#     height: 80
+    size: 24
+    id: font_large
+#  - file: "gfonts://Roboto@bold"
+#    size: 32
+#    id: font_large_bold
 
 display:
   - platform: st7735
@@ -79,46 +99,85 @@ display:
     # https://esphome.io/components/display/index.html
     # display content
     lambda: |-
-      auto black = Color(0, 0, 0);
-      auto white = Color(255, 255, 255);
-      auto gray = Color(127, 127, 127);
-      auto green = Color(0, 255, 0);
-      auto green2 = Color(127, 255, 127);
-      // auto orange = Color(255, 165, 0);
-      auto orange = Color(192, 140, 0);
-      auto graph_color = Color(128, 128, 255);
+      auto color_ok_bg           = Color(0,   127, 0);
+      auto color_ok_outline      = Color(127, 255, 127);
+      auto color_ok_fg           = Color(255, 255, 255);
 
-      // Draw a line from [0,0] to [100,50]
-      // it.line(0, 0, 100, 50);
-      // it.line(0, 0, 50, 100);
-      // print text
-      // it.print(0, 10, id(roboto_normal), "Hello World!");
-      //it.line(it.get_width(), 0, 0, it.get_height(), green2);
-      //it.line(0, 0, it.get_width(), it.get_height(), green);
+      auto color_warning_bg      = Color(127,  63, 0);
+      auto color_warning_outline = Color(255,  63, 127);
+      auto color_warning_fg      = Color(192, 192, 63);
 
-      // sensor value:
-      int x      = 10;
-      int y      = 10;
-      int width  = it.get_width() - (2*x);
-      int height = 60;
-      int spacex = 9;
-      int spacey = 11;
+      auto white                 = Color(255, 255, 255);
 
-      it.filled_rectangle(x, y, width, height, black);
-      it.rectangle(x, y, width, height, gray);
-      it.printf(x + spacex, y + spacey, id(font_default_bold), orange, "%.0f W", id(current_home_power_consumption).state);
+      float remaining_watts = $main_circuit_breaker_amps * $voltage;
+      remaining_watts -= id(current_power_consumption).state;
+      remaining_watts = floor(remaining_watts / 50) * 50;
 
-      // it.graph(x + spacex, y + height + spacey, id(single_power_graph), graph_color);
+      int x      = 0;
+      int y      = 0;
+      int width  = 128;
+      int height = 55;
 
-esp32:
-  board: $board
+      auto color_bg      = color_ok_bg;
+      auto color_outline = color_ok_outline;
+      auto color_fg      = color_ok_fg;
+      if (remaining_watts < 2500) {
+        color_bg      = color_warning_bg;
+        color_outline = color_warning_outline;
+        color_fg      = color_warning_fg;
+      }
+
+      rounded_rectangle(&it, x, y, width, height, 10, color_outline, color_bg);
+      it.print (x + width/2, y+5,  id(font_small), color_fg, TextAlign::TOP_CENTER, "rezerva");
+      it.printf(x + width/2, y+21, id(font_large), color_fg, TextAlign::TOP_CENTER, "%.0f W", remaining_watts);
+
+      bool error = false;
+
+      width  = 60;
+      height = 20;
+      y      = 88;
+      x      = 0;
+      if (remaining_watts < 2570) {
+        error = true;
+        rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
+        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Troubu");
+      }
+      x = 68;
+      if (remaining_watts < 2400) {
+        error = true;
+        rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
+        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Myčku");
+      }
+
+      y += 25;
+      x  = 0;
+      if (remaining_watts < 1200) {
+        error = true;
+        rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
+        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Mikrovlnku");
+      }
+      x = 68;
+      if (remaining_watts < 2100) {
+        error = true;
+        rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
+        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Pračku");
+      }
+
+      y     += 25;
+      x      = 0;
+      width  = 128;
+      if (remaining_watts < 2400) {
+        error = 1;
+        rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
+        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Rychlovarnou konvici");
+      }
+      
+      if (error) {
+        it.print(64, 65, id(font_small), white, TextAlign::TOP_CENTER, "NEZAPÍNAT:");
+      }
 
 logger:
   level: WARN
-
-# Include common settings
-.dummy: !include &dummy include/base.yaml
-<<: *dummy
 
 # Individual Wi-Fi settings
 wifi:
