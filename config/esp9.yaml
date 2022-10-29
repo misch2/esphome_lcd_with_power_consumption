@@ -19,6 +19,7 @@ substitutions:
   czech_charset: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZáčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ0123456789 !?\"%()+,-./:=_°"
   main_circuit_breaker_amps: "25"
   voltage: "230"
+  delay_backlight_off_seconds: "30"
 
 # Include common settings
 .dummy: !include &dummy include/base.yaml
@@ -54,6 +55,7 @@ mqtt:
   broker: !secret mqtt_server
   username: !secret mqtt_username
   password: !secret mqtt_password
+  discovery: false  # do not publish sensors on MQTT, use it only for internal communication
 
 sensor:
   - platform: mqtt_subscribe
@@ -65,12 +67,20 @@ sensor:
           window_size: 5
           send_every: 2
 
-output:
+# output:
+switch:
   - platform: gpio
     pin:
       number: $lcd_BL
       inverted: False
+    name: "Podsvícení displeje monitoru spotřeby"
     id: lcd_backlight_control
+    #entity_id: "switch.${devicename}_power_consumption_display_backlight"
+    #restore_mode: ALWAYS_ON
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
 
 spi:
   clk_pin: $lcd_SCL
@@ -106,6 +116,11 @@ display:
     # https://esphome.io/components/display/index.html
     # display content
     lambda: |-
+      static bool prev_error = false;
+      static auto timer_backlight_off = id(homeassistant_time).now().timestamp;
+
+      auto now_timestamp = id(homeassistant_time).now().timestamp;
+
       auto color_ok_bg           = Color(0,   127, 0);
       auto color_ok_outline      = Color(127, 255, 127);
       auto color_ok_fg           = Color(255, 255, 255);
@@ -120,21 +135,17 @@ display:
       remaining_watts -= id(current_power_consumption).state;
       remaining_watts = floor(remaining_watts / 50) * 50;
 
-      int x      = 0;
-      int y      = 0;
-      int width  = 128;
-      int height = 55;
-
       auto color_bg      = color_ok_bg;
       auto color_outline = color_ok_outline;
       auto color_fg      = color_ok_fg;
 
+      int x      = 0;
+      int y      = 88;
+      int width  = 60;
+      int height = 20;
+
       bool error = false;
 
-      width  = 60;
-      height = 20;
-      y      = 88;
-      x      = 0;
       if (remaining_watts < 2570) {
         error = true;
         rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
@@ -163,12 +174,24 @@ display:
 
       y     += 25;
       x      = 0;
-      width  = 128;
+      //width  = 128;
       if (remaining_watts < 2400) {
-        error = 1;
+        error = true;
         rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
-        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Rychlovarnou konvici");
+        //it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Rychlovarnou konvici");
+        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Konvici");
       }
+      x = 68;
+      if (remaining_watts < 1450) {
+        error = true;
+        rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
+        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Kávovar");
+      }
+
+      x      = 0;
+      y      = 0;
+      width  = 128;
+      height = 55;
 
       if (error) {
         color_bg      = color_warning_bg;
@@ -176,9 +199,31 @@ display:
         color_fg      = color_warning_fg;
 
         it.print(64, 65, id(font_small), white, TextAlign::TOP_CENTER, "NEZAPÍNAT:");
+        timer_backlight_off = 0;
         id(lcd_backlight_control).turn_on();
+
+        if (!prev_error) {
+          // brand new error
+
+          ESP_LOGD("warn", "Power consumption too high, power available = %.0f W", remaining_watts);
+          ESP_LOGD("info", "turning backlight on, time=%d", now_timestamp);
+        };
       } else {
-        id(lcd_backlight_control).turn_off();
+        if (prev_error) {
+          // brand new OK state
+
+          ESP_LOGD("info", "Everything OK again, power available = %.0f W", remaining_watts);
+          timer_backlight_off = id(homeassistant_time).now().timestamp;
+        };
+      }
+      prev_error = error;
+
+      if (timer_backlight_off != 0) {
+        if ((now_timestamp - timer_backlight_off) > $delay_backlight_off_seconds) {
+          ESP_LOGD("info", "turning backlight off, time=%d", now_timestamp);
+          id(lcd_backlight_control).turn_off();
+          timer_backlight_off = 0;
+        }
       }
 
       rounded_rectangle(&it, x, y, width, height, 10, color_outline, color_bg);
