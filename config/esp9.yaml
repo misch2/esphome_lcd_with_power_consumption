@@ -15,7 +15,7 @@ substitutions:
   lcd_RES: GPIO25
   lcd_DC:  GPIO26
   lcd_CS:  GPIO27
-  lcd_BL:  GPIO14   # not used anywhere in the code
+  lcd_BL:  GPIO14
   czech_charset: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZáčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ0123456789 !?\"%()+,-./:=_°"
   main_circuit_breaker_amps: "25"
   voltage: "230"
@@ -33,9 +33,9 @@ esphome:
     - include/lcd_utils.h
 
 # Enable for debugging only, not needed for functionality:
-# web_server:
-#   port: 80
-#   include_internal: true
+web_server:
+  port: 80
+  include_internal: True
 
 # Enable Home Assistant API
 api:
@@ -47,7 +47,7 @@ api:
 #  - platform: homeassistant
 #    entity_id: sensor.shellyem_e868e7d2b1de_channel_1_power
 #    id: current_power_consumption
-#    internal: true  # do not report this back to HA
+#    internal: True  # do not report this back to HA
 
 # For some reason the MQTT is much faster than API (and the interval is configurable in Shelly settings):
 mqtt:
@@ -57,13 +57,20 @@ mqtt:
 
 sensor:
   - platform: mqtt_subscribe
-    id: current_power_consumption
     topic: "shellies/shellyem-E868E7D2B1DE/emeter/0/power"
-    internal: true  # do not report this back to HA
+    id: current_power_consumption
+    internal: True  # do not report this back to HA
     filters:
       - sliding_window_moving_average:
           window_size: 5
           send_every: 2
+
+output:
+  - platform: gpio
+    pin:
+      number: $lcd_BL
+      inverted: False
+    id: lcd_backlight_control
 
 spi:
   clk_pin: $lcd_SCL
@@ -89,12 +96,12 @@ display:
     reset_pin: $lcd_RES
     cs_pin: $lcd_CS
     dc_pin: $lcd_DC
-    rotation: 0
+    rotation: 180
     device_width: 128
     device_height: 160
     col_start: 2
     row_start: 1
-    eight_bit_color: true
+    eight_bit_color: True
     update_interval: 1s
     # https://esphome.io/components/display/index.html
     # display content
@@ -121,15 +128,6 @@ display:
       auto color_bg      = color_ok_bg;
       auto color_outline = color_ok_outline;
       auto color_fg      = color_ok_fg;
-      if (remaining_watts < 2500) {
-        color_bg      = color_warning_bg;
-        color_outline = color_warning_outline;
-        color_fg      = color_warning_fg;
-      }
-
-      rounded_rectangle(&it, x, y, width, height, 10, color_outline, color_bg);
-      it.print (x + width/2, y+5,  id(font_small), color_fg, TextAlign::TOP_CENTER, "rezerva");
-      it.printf(x + width/2, y+21, id(font_large), color_fg, TextAlign::TOP_CENTER, "%.0f W", remaining_watts);
 
       bool error = false;
 
@@ -171,10 +169,21 @@ display:
         rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
         it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Rychlovarnou konvici");
       }
-      
+
       if (error) {
+        color_bg      = color_warning_bg;
+        color_outline = color_warning_outline;
+        color_fg      = color_warning_fg;
+
         it.print(64, 65, id(font_small), white, TextAlign::TOP_CENTER, "NEZAPÍNAT:");
+        id(lcd_backlight_control).turn_on();
+      } else {
+        id(lcd_backlight_control).turn_off();
       }
+
+      rounded_rectangle(&it, x, y, width, height, 10, color_outline, color_bg);
+      it.print (x + width/2, y+5,  id(font_small), color_fg, TextAlign::TOP_CENTER, "rezerva");
+      it.printf(x + width/2, y+21, id(font_large), color_fg, TextAlign::TOP_CENTER, "%.0f W", remaining_watts);
 
 logger:
   level: WARN
