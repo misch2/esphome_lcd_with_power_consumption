@@ -5,4 +5,8 @@ For example it doesn't go well to turn on the electric oven + dishwasher + washi
 
 Example when everything's OK: ![image](https://user-images.githubusercontent.com/16558674/198727731-7290e76c-7eb8-43b8-9e06-f181c8d92e14.png)
 
+The display is off when everything's OK (but you can turn it on manually if needed) and it turns on and displays a warning message when there's a possibility of insufficient power. You can also turn on/off the display backlight via the Home Assistant.
 
+On insufficient power condition a warning message is displayed on the LDC together with a list of appliances that shouldn't be turned on.
+As soon as power consumption dropts to the "OK" level, the LCD turns off after 30 seconds to not confuse the user.
+ 
