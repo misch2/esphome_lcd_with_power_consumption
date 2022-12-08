@@ -1,7 +1,7 @@
 ---
 substitutions:
   <<: !include include/base_substitutions.yaml
-  devicename: esp9
+  devicename: "esp9-monitor-spotreby-kuchyne"
   deviceip: 10.52.6.39
   board: esp32dev
   #  SCL = gray   = 32  // SPI clock
@@ -62,21 +62,23 @@ sensor:
     topic: "shellies/shellyem-E868E7D2B1DE/emeter/0/power"
     id: current_power_consumption
     internal: True  # do not report this back to HA
+  - platform: mqtt_subscribe
+    topic: "shellies/shellyem-E868E7D2B1DE/emeter/0/power"
+    id: current_power_consumption_smoothed
+    internal: True  # do not report this back to HA
     filters:
-      - sliding_window_moving_average:
+      - sliding_window_moving_average:  
           window_size: 5
           send_every: 2
 
-# output:
-switch:
+# https://esphome.io/components/switch/index.html
+switch: # "switch" allows to control it using HA UI too, as opposite to a bare "output"
   - platform: gpio
     pin:
       number: $lcd_BL
       inverted: False
-    name: "Podsvícení displeje monitoru spotřeby"
+    name: "Power consumption monitor backlight"
     id: lcd_backlight_control
-    #entity_id: "switch.${devicename}_power_consumption_display_backlight"
-    #restore_mode: ALWAYS_ON
 
 time:
   - platform: homeassistant
@@ -92,16 +94,12 @@ font:
     id: font_small
     glyphs: $czech_charset 
   - file: "gfonts://Roboto@bold"
-    size: 24
+    size: 22
     id: font_large
-#  - file: "gfonts://Roboto@bold"
-#    size: 32
-#    id: font_large_bold
 
 display:
   - platform: st7735
     # https://esphome.io/components/display/st7735.html
-    # pins definition
     model: "INITR_18BLACKTAB"
     reset_pin: $lcd_RES
     cs_pin: $lcd_CS
@@ -114,7 +112,6 @@ display:
     eight_bit_color: True
     update_interval: 1s
     # https://esphome.io/components/display/index.html
-    # display content
     lambda: |-
       static bool prev_error = false;
       static auto timer_backlight_off = id(homeassistant_time).now().timestamp;
@@ -140,65 +137,71 @@ display:
       auto color_fg      = color_ok_fg;
 
       int x      = 0;
-      int y      = 88;
+      int y      = 74;
       int width  = 60;
-      int height = 20;
+      int height = 18;
 
       bool error = false;
 
-      if (remaining_watts < 2570) {
+      if (remaining_watts < 2800) {
         error = true;
         rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
-        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Troubu");
+        it.print(x + 3, y + 2, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Troubu");
       }
       x = 68;
       if (remaining_watts < 2400) {
         error = true;
         rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
-        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Myčku");
+        it.print(x + 3, y + 2, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Myčku");
       }
 
-      y += 25;
-      x  = 0;
-      if (remaining_watts < 1200) {
+      y += 22;
+      x = 0;
+      if (remaining_watts < 1370) {
         error = true;
         rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
-        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Mikrovlnku");
+        it.print(x + 3, y + 2, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Mikrovlnku");
       }
       x = 68;
-      if (remaining_watts < 2100) {
+      if (remaining_watts < 2100) { // ???
         error = true;
         rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
-        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Pračku");
+        it.print(x + 3, y + 2, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Pračku");
       }
 
-      y     += 25;
-      x      = 0;
-      //width  = 128;
-      if (remaining_watts < 2400) {
+      y += 22;
+      x = 0;
+      if (remaining_watts < 2300) {
         error = true;
         rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
-        //it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Rychlovarnou konvici");
-        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Konvici");
+        it.print(x + 3, y + 2, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Konvici");
       }
       x = 68;
-      if (remaining_watts < 1450) {
+      if (remaining_watts < 1530) {
         error = true;
         rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
-        it.print(x + 3, y + 3, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Kávovar");
+        it.print(x + 3, y + 2, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Kávovar");
+      }
+
+      y += 22;
+      x = 0;
+      if (remaining_watts < 890) {
+        error = true;
+        rounded_rectangle(&it, x, y, width, height, 3, color_warning_outline, color_warning_bg);
+        it.print(x + 3, y + 2, id(font_small), color_warning_fg, TextAlign::TOP_LEFT, "Toustovač");
       }
 
       x      = 0;
       y      = 0;
       width  = 128;
-      height = 55;
+      height = 45;
 
       if (error) {
         color_bg      = color_warning_bg;
         color_outline = color_warning_outline;
         color_fg      = color_warning_fg;
 
-        it.print(64, 65, id(font_small), white, TextAlign::TOP_CENTER, "NEZAPÍNAT:");
+        it.print(64, 53, id(font_small), white, TextAlign::TOP_CENTER, "NEZAPÍNAT:");
         timer_backlight_off = 0;
         id(lcd_backlight_control).turn_on();
 
@@ -227,8 +230,8 @@ display:
       }
 
       rounded_rectangle(&it, x, y, width, height, 10, color_outline, color_bg);
-      it.print (x + width/2, y+5,  id(font_small), color_fg, TextAlign::TOP_CENTER, "rezerva");
-      it.printf(x + width/2, y+21, id(font_large), color_fg, TextAlign::TOP_CENTER, "%.0f W", remaining_watts);
+      it.print (x + width/2, y+3,  id(font_small), color_fg, TextAlign::TOP_CENTER, "rezerva");
+      it.printf(x + width/2, y+18, id(font_large), color_fg, TextAlign::TOP_CENTER, "%.0f W", remaining_watts); // raw, nonsmoothed value
 
 logger:
   level: WARN
