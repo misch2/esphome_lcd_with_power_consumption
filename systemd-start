@@ -1,3 +1,0 @@
-#!/bin/bash
-PATH=$PATH:/home/esphome/.local/bin
-exec /home/esphome/.local/bin/esphome dashboard config
