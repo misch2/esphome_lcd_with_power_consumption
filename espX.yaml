@@ -1,8 +1,8 @@
 ---
 substitutions:
   <<: !include include/base_substitutions.yaml
-  devicename: "esp9-monitor-spotreby-kuchyne"
-  deviceip: 10.52.6.39
+  devicename: "espX"
+  deviceip: 10.x.y.z
   board: esp32dev
   #  SCL = gray   = 32  // SPI clock
   #  SDA = violet = 33  // SPI data
@@ -59,11 +59,11 @@ mqtt:
 
 sensor:
   - platform: mqtt_subscribe
-    topic: "shellies/shellyem-E868E7D2B1DE/emeter/0/power"
+    topic: "shellies/shellyem-E868E7xxxxxx/emeter/0/power"
     id: current_power_consumption
     internal: True  # do not report this back to HA
   - platform: mqtt_subscribe
-    topic: "shellies/shellyem-E868E7D2B1DE/emeter/0/power"
+    topic: "shellies/shellyem-E868E7xxxxxx/emeter/0/power"
     id: current_power_consumption_smoothed
     internal: True  # do not report this back to HA
     filters:
